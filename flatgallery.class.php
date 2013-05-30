@@ -14,13 +14,12 @@ See the README file that came with your archive
 for more information.
 
 ********************/
-
 class flatgallery {
 
 	private $__gallery = "";
 	private $__offset = 0;
 	private $__cols = 5;
-	private $__rows = 50;
+	private $__rows = 5;
 	private $__title = "My FlatGallery";
 	private $__stylesheet = "./style.css";
 	private $__image_dir = "./images";
@@ -45,7 +44,7 @@ class flatgallery {
 	private $__break = 0;
 	private $__bump = 0;
 	protected $__VERSION="3.0a";
-	protected $__COPY="2006";
+	protected $__COPY=date("Y");
 
 	function __construct(){
 		//ini_set('error_reporting',0);
@@ -56,10 +55,10 @@ class flatgallery {
 		if(empty($this->__gallery)){
 			$this->__gallery="";
 		}else{
-			$this->__gallery=stripslashes(ereg_replace("@","/",$this->__gallery))."";
+			$this->__gallery=stripslashes(preg_replace("/@/","/",$this->__gallery))."";
 		}
 		if(!is_dir($this->__image_dir."/".$this->__gallery)){
-			$this->error="No gallery by name: ".ereg_replace("_"," ",$this->__gallery);
+			$this->error="No gallery by name: ".preg_replace("/_/"," ",$this->__gallery);
 			return false;
 		}
 		$this->do_parse();
@@ -71,6 +70,43 @@ class flatgallery {
 			$this->error="No images to display";
 		}
 
+	}
+
+
+	private function ShowFileName($filepath) 
+    { 
+        preg_match('/[^?]*/', $filepath, $matches); 
+        $string = $matches[0]; 
+        #split the string by the literal dot in the filename 
+        $pattern = preg_split('/\./', $string, -1, PREG_SPLIT_OFFSET_CAPTURE); 
+        #get the last dot position 
+        $lastdot = $pattern[count($pattern)-1][1]; 
+        #now extract the filename using the basename function 
+        $filename = basename(substr($string, 0, $lastdot-1)); 
+        #return the filename part 
+        return $filename; 
+    } 
+
+	public function display_image()
+	{
+		$this->head();
+		$image = $_GET['image'];
+
+		if(!is_file($this->__image_dir.'/'.$this->__gallery.$image))
+		{	echo 'Invalid image!'; return 0; }
+
+		$image_key = array_search($image,$this->__image_index);
+		echo '<center>';
+		echo '<table style="width:500px;">';
+		echo '<tr>';
+		echo '<td style="text-align:center;"><a href="?gallery='.$this->__gallery.'&image='.($this->__image_index[$image_key-1]).'"><img src="./a-prev.png" border="0"/></a></td>';
+		echo '<td style="text-align:center;"><a href="?gallery='.$this->__gallery.'"><img src="./a-up.png"  border="0" /></a></td>';
+		echo '<td style="text-align:center;"><a href="?gallery='.$this->__gallery.'&image='.($this->__image_index[$image_key+1]).'"><img src="./a-next.png"  border="0"/></a></td>';
+		echo '</tr>';
+		echo '<tr><td colspan="3" style="text-align:center;"><h3>'.$this->ShowFileName($image).'</h2></td></tr>';
+		echo '</table>';
+		echo '<p><img src="'.$this->__image_dir.'/'.$this->__gallery.$image.'" /></p>';
+		echo '</center>';
 	}
 	
 	private function microtime_float()
@@ -99,7 +135,7 @@ class flatgallery {
 				$this->__dir_index[$foo]=$this->list_dir($this->__image_dir."/".$gal.$foo);
 				//echo $foo."<br/>";
 			}
-			if(!is_dir($this->__image_dir."/".$gal.$foo) && preg_match("/\.(jpg|JPG)$|\.(gif|GIF)$|\.(png|PNG)$|\.(jpeg|JPEG)$/",$foo)==1){
+			if(!is_dir($this->__image_dir."/".$gal.$foo) && preg_match("/\.(jpg|JPG)$|\.(gif|GIF)$|\.(png|PNG)$/",$foo)==1){
 				$this->__image_index[]=$foo;
 			}
 		
@@ -110,7 +146,7 @@ class flatgallery {
 			if(is_dir($this->__thumb_dir."/".$gal.$foo)){
 				$this->__thumb_dir_index[$foo]=$this->list_dir($this->__thumb_dir."/".$gal.$foo);
 			}
-			if(preg_match("/\.(jpg|JPG)$|\.(gif|GIF)$|\.(png|PNG)$|\.(jpeg|JPEG)$/",$foo)==1){
+			if(preg_match("/\.(jpg|JPG)$|\.(gif|GIF)$|\.(png|PNG)$/",$foo)==1){
 				$this->__thumb_index[]=$foo;
 			}
 		}
@@ -123,7 +159,7 @@ class flatgallery {
 		$dir_list=array();
 		while($sz = readdir($dir)){
 			if($sz !="." && $sz!=".."){
-				if(preg_match("/\.(jpg|JPG)$|\.(gif|GIF)$|\.(png|PNG)$|\.(jpeg|JPEG)$/",$d."/".$sz)){
+				if(preg_match("/\.(jpg|JPG)$|\.(gif|GIF)$|\.(png|PNG)$/",$d."/".$sz)){
 					$file_list[]=$sz;
 				}elseif(is_dir($d."/".$sz)){
 					$dir_list[]=$sz;
@@ -145,7 +181,7 @@ class flatgallery {
 			}
 		}
 		if($size<20){$size=20;}
-		ini_set("memory_limit",$size."M");
+		//ini_set("memory_limit",$size."M");
 		ini_set("max_execution_time",$size);
 	}
 	
@@ -230,7 +266,7 @@ class flatgallery {
 		$fl=array();
 		if($hd=opendir($directory)){
 			while ($sz = readdir($hd)) { 
-				if (preg_match("/\.(jpg|JPG)$|\.(gif|GIF)$|\.(png|PNG)$|\.(jpeg|JPEG)$/",$sz)==1) {
+				if (preg_match("/\.(jpg|JPG)$|\.(gif|GIF)$|\.(png|PNG)$/",$sz)==1) {
 					$fl[] = $sz; 
 				}
 			}
@@ -240,19 +276,42 @@ class flatgallery {
 		return $fl;		
 	}
 	
-	protected function make_thumb($filename){
+	protected function write_exif($gal,$file,$data){
+		$fp=fopen($this->__thumb_dir."/exif_data","a");
+		/*foreach($data as $type=>$line){
+			foreach($line as $name=>$val){
+				$out.=$type.$name.": ".$val."\n";
+			}
+		}*/
+		$size = getimagesize ( $this->__image_dir."/".$gal.$file, $info);       
+       	$iptc = iptcparse($info["APP13"]);
+		if($iptc !== false){
+			if(is_array($iptc["2#025"]))
+				$out=$gal.$file." : ".implode(", ",$iptc["2#025"]);		
+			else
+				$out=$gal.$file." : ".$iptc["2#025"];		
+		}
+		
+		fwrite($fp,$out."\n\n");
+		fclose($fp);
+	}
+	
+	protected function make_thumb($file){
 		$this->malloc();
 		if($this->__gallery!="")
 			$gal=$this->__gallery;
 		else
 			$gal="";
-		$filename=$gal.$filename;
+		$filename=$gal.$file;
 		$type=exif_imagetype($this->__image_dir."/".$filename);
-		print "creating thumbnail for: ".$this->__image_dir."/".$filename."\n";
 		switch($type){
 			case 1:	$im=imagecreatefromgif($this->__image_dir."/".$filename);					
 						break;
 			case 2: $im=imagecreatefromjpeg($this->__image_dir."/".$filename);
+					//$exif = @exif_read_data($this->__image_dir."/".$filename, 'IFD0', true, 0);
+					//if($exif!==false)
+					//	$this->write_exif($gal,$filename,$exif);
+					
 						break;
 			case 3: $im=imagecreatefrompng($this->__image_dir."/".$filename);
 						break;
@@ -312,7 +371,7 @@ class flatgallery {
 			foreach($this->__dir_index as $key=>$value){
 				if(!file_exists($this->__thumb_dir."/".$gal.$key)){
 					mkdir($this->__thumb_dir."/".$gal.$key);
-					chmod($this->__thumb_dir."/".$gal.$key,0777);
+					@chmod($this->__thumb_dir."/".$gal.$key,0777);
 				}
 				foreach($value as $foo){
 					if(!file_exists($this->__thumb_dir."/".$gal.$key."/".$foo)){
@@ -385,13 +444,13 @@ class flatgallery {
 		if($this->__offset<sizeof($this->__dir_index) && sizeof($this->__dir_index)!=0){
 			for($j=$this->__offset;$j<($this->__size+$this->__offset);$j++){
 				$keys=array_keys($this->__dir_index);
-				$gal=ereg_replace("/","@",$this->__gallery);
+				$gal=preg_replace("/\//","@",$this->__gallery);
 				if(is_file($img))
-					$link="<img src=\"".$img."\" border=\"0\" alt=\"".ereg_replace("_"," ",$keys[$j])."\" height=\"".$this->__thumb_max_size."\" width=\"".$this->__thumb_max_size."\" title=\"".ereg_replace("_"," ",$keys[$j])."\" />";
+					$link="<img src=\"".$img."\" border=\"0\" alt=\"".preg_replace("/_/"," ",$keys[$j])."\" height=\"".$this->__thumb_max_size."\" width=\"".$this->__thumb_max_size."\" title=\"".preg_replace("/_/"," ",$keys[$j])."\" />";
 				else
-					$link=ereg_replace("_"," ",$keys[$j]);
+					$link=preg_replace("/_/"," ",$keys[$j]);
 				echo "<td class=\"fg_cell\"><a href=\"?".$this->__link_requisit."&amp;gallery=".urlencode($gal.$keys[$j]."/")."\">".$link."</a>\n";
-				echo "<br /><span class=\"fg_filename\">".ereg_replace("_"," ",$keys[$j])."<br/>(".sizeof($this->__dir_index[$keys[$j]]).")</span>\n";
+				echo "<br /><span class=\"fg_filename\">".preg_replace("/_/"," ",$keys[$j])."<br/>(".sizeof($this->__dir_index[$keys[$j]]).")</span>\n";
 				echo "</td>\n";
 
 				if(($this->__bump+1)%$this->__cols==0){
@@ -424,7 +483,11 @@ class flatgallery {
 			$filename=$this->__image_index[$j];
 			
 			list($width,$height)=getimagesize($this->__thumb_dir."/".$this->__gallery.$filename);
-			echo "<td class=\"fg_cell\"><a href=\"".$this->__image_dir."/".$this->__gallery.$filename."\"><img src=\"".$this->__thumb_dir."/".$this->__gallery.$filename."\" class=\"fg_thumb\" alt=\"".$filename."\" title=\"".$filename."\" height=\"".$height."\" width=\"".$width."\" /></a>\n";
+			echo "<td class=\"fg_cell\">";
+			//echo "<a href=\"".$this->__image_dir."/".$this->__gallery.$filename."\">"
+			echo '<a href="?gallery='.$this->__gallery.'&image='.$filename.'">';
+			echo "<img src=\"".$this->__thumb_dir."/".$this->__gallery.$filename."\" class=\"fg_thumb\" alt=\"".$filename."\" title=\"".$filename."\" height=\"".$height."\" width=\"".$width."\" />";
+			echo "</a>\n";
 			if($this->__show_filename==1){
 				echo "<br /><span class=\"fg_filename\">".substr($filename,0,strrpos($filename,"."))."</span>\n";
 			}
@@ -541,7 +604,7 @@ class flatgallery {
 	
 	public function get_gallery_name(){
 		if(!empty($this->__gallery))
-			echo ereg_replace("_"," ",ereg_replace("/"," / ",$this->__gallery));
+			echo preg_replace("/_/"," ",preg_replace("/\//"," / ",$this->__gallery));
 	}
 	public function get_disp_num(){
 		$disp=1;
