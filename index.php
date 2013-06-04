@@ -63,7 +63,11 @@ $gal->set_show_filename($show_name);
 $gal->set_show_filesize($show_size);
 
 #Display: Displays the gallery
-$gal->display_default();
+if (!empty($_GET['image'])) {
+	$gal->display_image();
+} else {
+	$gal->display_default();
+}
 
 
 
