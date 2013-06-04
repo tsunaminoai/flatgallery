@@ -43,15 +43,20 @@ class flatgallery {
 	private $__list_size = 0;
 	private $__break = 0;
 	private $__bump = 0;
-	protected $__VERSION="3.0a";
-	protected $__COPY=date("Y");
+	private $__imagename_regex = "/\.(jpg|gif|png)$/i";
+	protected $__VERSION='3.0a';
+	protected $__COPY='2013';
 
 	function __construct(){
 		//ini_set('error_reporting',0);
 		ini_set('max_execution_time',300);
 		$this->time_start = $this->microtime_float();
-		$this->set_offset($_GET['offset']);
-		$this->set_gallery(rawurldecode($_GET['gallery']));
+		if (!empty($_GET['offset'])) {
+			$this->set_offset($_GET['offset']);
+		}
+		if (!empty($_GET['gallery'])) {
+			$this->set_gallery(rawurldecode($_GET['gallery']));
+		}
 		if(empty($this->__gallery)){
 			$this->__gallery="";
 		}else{
@@ -74,18 +79,18 @@ class flatgallery {
 
 
 	private function ShowFileName($filepath) 
-    { 
-        preg_match('/[^?]*/', $filepath, $matches); 
-        $string = $matches[0]; 
-        #split the string by the literal dot in the filename 
-        $pattern = preg_split('/\./', $string, -1, PREG_SPLIT_OFFSET_CAPTURE); 
-        #get the last dot position 
-        $lastdot = $pattern[count($pattern)-1][1]; 
-        #now extract the filename using the basename function 
-        $filename = basename(substr($string, 0, $lastdot-1)); 
-        #return the filename part 
-        return $filename; 
-    } 
+	{ 
+		preg_match('/[^?]*/', $filepath, $matches); 
+		$string = $matches[0]; 
+		#split the string by the literal dot in the filename 
+		$pattern = preg_split('/\./', $string, -1, PREG_SPLIT_OFFSET_CAPTURE); 
+		#get the last dot position 
+		$lastdot = $pattern[count($pattern)-1][1]; 
+		#now extract the filename using the basename function 
+		$filename = basename(substr($string, 0, $lastdot-1)); 
+		#return the filename part 
+		return $filename; 
+	} 
 
 	public function display_image()
 	{
@@ -93,20 +98,37 @@ class flatgallery {
 		$image = $_GET['image'];
 
 		if(!is_file($this->__image_dir.'/'.$this->__gallery.$image))
-		{	echo 'Invalid image!'; return 0; }
+		{	echo 'Invalid image (404)!'; return 0; }
 
 		$image_key = array_search($image,$this->__image_index);
+		if ($image_key === false) {
+			echo 'Invalid image (keysearch)!'; 
+			return 0;
+		}
 		echo '<center>';
 		echo '<table style="width:500px;">';
 		echo '<tr>';
-		echo '<td style="text-align:center;"><a href="?gallery='.$this->__gallery.'&image='.($this->__image_index[$image_key-1]).'"><img src="./a-prev.png" border="0"/></a></td>';
+		echo '<td style="text-align:center;">';
+		if ($image_key > 0) {
+			echo '<a href="?gallery='.$this->__gallery.'&image='.($this->__image_index[$image_key-1]).'"><img src="./a-prev.png" border="0"/></a>';
+		} else {
+			echo '&nbsp;';
+		}
+		echo '</td>';
 		echo '<td style="text-align:center;"><a href="?gallery='.$this->__gallery.'"><img src="./a-up.png"  border="0" /></a></td>';
-		echo '<td style="text-align:center;"><a href="?gallery='.$this->__gallery.'&image='.($this->__image_index[$image_key+1]).'"><img src="./a-next.png"  border="0"/></a></td>';
+		echo '<td style="text-align:center;">';
+		if ($image_key < count($this->__image_index)-1) {
+			echo '<a href="?gallery='.$this->__gallery.'&image='.($this->__image_index[$image_key+1]).'"><img src="./a-next.png"  border="0"/></a>';
+		} else {
+			echo '&nbsp;';
+		}
+		echo '</td>';
 		echo '</tr>';
 		echo '<tr><td colspan="3" style="text-align:center;"><h3>'.$this->ShowFileName($image).'</h2></td></tr>';
 		echo '</table>';
 		echo '<p><img src="'.$this->__image_dir.'/'.$this->__gallery.$image.'" /></p>';
 		echo '</center>';
+		$this->foot();
 	}
 	
 	private function microtime_float()
@@ -135,7 +157,7 @@ class flatgallery {
 				$this->__dir_index[$foo]=$this->list_dir($this->__image_dir."/".$gal.$foo);
 				//echo $foo."<br/>";
 			}
-			if(!is_dir($this->__image_dir."/".$gal.$foo) && preg_match("/\.(jpg|JPG)$|\.(gif|GIF)$|\.(png|PNG)$/",$foo)==1){
+			if(!is_dir($this->__image_dir."/".$gal.$foo) && preg_match($this->__imagename_regex,$foo)==1){
 				$this->__image_index[]=$foo;
 			}
 		
@@ -146,7 +168,7 @@ class flatgallery {
 			if(is_dir($this->__thumb_dir."/".$gal.$foo)){
 				$this->__thumb_dir_index[$foo]=$this->list_dir($this->__thumb_dir."/".$gal.$foo);
 			}
-			if(preg_match("/\.(jpg|JPG)$|\.(gif|GIF)$|\.(png|PNG)$/",$foo)==1){
+			if(preg_match($this->__imagename_regex,$foo)==1){
 				$this->__thumb_index[]=$foo;
 			}
 		}
@@ -159,7 +181,7 @@ class flatgallery {
 		$dir_list=array();
 		while($sz = readdir($dir)){
 			if($sz !="." && $sz!=".."){
-				if(preg_match("/\.(jpg|JPG)$|\.(gif|GIF)$|\.(png|PNG)$/",$d."/".$sz)){
+				if(preg_match($this->__imagename_regex,$d."/".$sz)){
 					$file_list[]=$sz;
 				}elseif(is_dir($d."/".$sz)){
 					$dir_list[]=$sz;
@@ -266,7 +288,7 @@ class flatgallery {
 		$fl=array();
 		if($hd=opendir($directory)){
 			while ($sz = readdir($hd)) { 
-				if (preg_match("/\.(jpg|JPG)$|\.(gif|GIF)$|\.(png|PNG)$/",$sz)==1) {
+				if (preg_match($this->__imagename_regex,$sz)==1) {
 					$fl[] = $sz; 
 				}
 			}
@@ -459,7 +481,7 @@ class flatgallery {
 				$i++;
 				$this->__bump++;
 				//echo "$j - ".sizeof($this->__dir_list)."<br>";
-				if($j+1==$break || $j+1+sizeof($this->__image_index)>=sizeof($this->__dir_list)){
+				if($j+1==$this->__break || $j+1+sizeof($this->__image_index)>=sizeof($this->__dir_list)){
 					break;
 				}
 			}
@@ -495,7 +517,7 @@ class flatgallery {
 				echo "<br /><span class=\"fg_filesize\">".$this->show_size($this->__image_dir."/".$this->__gallery.$filename)."</span>\n";
 			}
 			echo "</td>\n";
-			if($j+1==$break){
+			if($j+1==$this->__break){
 				break;
 			}
 			
@@ -541,6 +563,7 @@ class flatgallery {
 	
 	public function first_page($img = "./a-first.png"){
 		$count=1;
+		$p=0;
 		while($p<$this->__list_size){
 				$p=$count*$this->__size;
 				$count++;
@@ -559,6 +582,7 @@ class flatgallery {
 	
 	public function last_page($img = "./a-last.png"){
 		$count=1;
+		$p=0;
 		while($p<$this->__list_size){
 				$p=$count*$this->__size;
 				$count++;
@@ -723,6 +747,5 @@ class flatgallery {
 	}
 	
 }
-
 
 ?>
