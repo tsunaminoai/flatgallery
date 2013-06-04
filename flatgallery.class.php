@@ -43,6 +43,7 @@ class flatgallery {
 	private $__list_size = 0;
 	private $__break = 0;
 	private $__bump = 0;
+	private $__imagename_regex = "/\.(jpg|gif|png)$/i";
 	protected $__VERSION='3.0a';
 	protected $__COPY='2013';
 
@@ -156,7 +157,7 @@ class flatgallery {
 				$this->__dir_index[$foo]=$this->list_dir($this->__image_dir."/".$gal.$foo);
 				//echo $foo."<br/>";
 			}
-			if(!is_dir($this->__image_dir."/".$gal.$foo) && preg_match("/\.(jpg|JPG)$|\.(gif|GIF)$|\.(png|PNG)$/",$foo)==1){
+			if(!is_dir($this->__image_dir."/".$gal.$foo) && preg_match($this->__imagename_regex,$foo)==1){
 				$this->__image_index[]=$foo;
 			}
 		
@@ -167,7 +168,7 @@ class flatgallery {
 			if(is_dir($this->__thumb_dir."/".$gal.$foo)){
 				$this->__thumb_dir_index[$foo]=$this->list_dir($this->__thumb_dir."/".$gal.$foo);
 			}
-			if(preg_match("/\.(jpg|JPG)$|\.(gif|GIF)$|\.(png|PNG)$/",$foo)==1){
+			if(preg_match($this->__imagename_regex,$foo)==1){
 				$this->__thumb_index[]=$foo;
 			}
 		}
@@ -180,7 +181,7 @@ class flatgallery {
 		$dir_list=array();
 		while($sz = readdir($dir)){
 			if($sz !="." && $sz!=".."){
-				if(preg_match("/\.(jpg|JPG)$|\.(gif|GIF)$|\.(png|PNG)$/",$d."/".$sz)){
+				if(preg_match($this->__imagename_regex,$d."/".$sz)){
 					$file_list[]=$sz;
 				}elseif(is_dir($d."/".$sz)){
 					$dir_list[]=$sz;
@@ -287,7 +288,7 @@ class flatgallery {
 		$fl=array();
 		if($hd=opendir($directory)){
 			while ($sz = readdir($hd)) { 
-				if (preg_match("/\.(jpg|JPG)$|\.(gif|GIF)$|\.(png|PNG)$/",$sz)==1) {
+				if (preg_match($this->__imagename_regex,$sz)==1) {
 					$fl[] = $sz; 
 				}
 			}
